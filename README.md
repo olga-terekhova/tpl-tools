@@ -48,15 +48,15 @@ For example, before checking the feeds:
 
 ![screen1](tpl-update-feeds/docs/screen1.png)
 
-![screen2](screen2-1790973924936-1.png)
+![screen2](tpl-update-feeds/docs/screen2.png)
 
 
 
 After checking the feeds:
 
-![screen3](screen3-1790973928150-3.png)
+![screen3](tpl-update-feeds/docs/screen3.png)
 
-![screen4](screen4-1790973931503-5.png)
+![screen4](tpl-update-feeds/docs/screen4.png)
 
 
 
