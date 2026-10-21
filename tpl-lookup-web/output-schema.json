@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OutputBookMetadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title_cyrillic",
+    "authors_cyrillic",
+    "illustrators_cyrillic",
+    "publisher_cyrillic",
+    "series_cyrillic",
+    "format",
+    "publication_year",
+    "isbn",
+    "age_rating",
+    "genre",
+    "listing_links",
+    "review_links"
+  ],
+  "properties": {
+    "title_cyrillic": {
+      "type": ["string", "null"],
+      "description": "Book title in Cyrillic; null if not determined."
+    },
+    "authors_cyrillic": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of author names in Cyrillic; empty array if unknown."
+    },
+    "illustrators_cyrillic": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of illustrator names in Cyrillic; empty array if none or unknown."
+    },
+    "publisher_cyrillic": {
+      "type": ["string", "null"],
+      "description": "Publisher name in Cyrillic; null if unknown."
+    },
+    "series_cyrillic": {
+      "type": ["string", "null"],
+      "description": "Series name in Cyrillic; null if not part of a series or unknown."
+    },
+    "format": {
+      "type": ["string", "null"],
+      "description": "Physical/digital format and number of pages, e.g., 'hardcover, 32 pages', 'paperback, 96 pages', 'audiobook'; null if unknown."
+    },
+    "publication_year": {
+      "type": ["integer", "null"],
+      "description": "Publication year of this edition; null if unknown."
+    },
+    "isbn": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of ISBNs (prefer ISBN-13; include ISBN-10 if available); empty array if unknown."
+    },
+    "age_rating": {
+      "type": ["string", "null"],
+      "description": "Age rating as stated by publisher/retailer, in original language; null if not stated."
+    },
+    "genre": {
+      "type": ["string", "null"],
+      "description": "Genre or category, e.g., 'children's picture book / fairy tale'; null if unknown."
+    },
+    "listing_links": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "maxItems": 10,
+      "description": "Up to 10 URLs of pages that list this edition, prioritized: publisher site, author site, Ozon, Labirint, then other reputable sources."
+    },
+    "review_links": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "maxItems": 10,
+      "description": "Up to 10 URLs of pages with user reviews/ratings for this title/edition; may overlap with listing_links."
+    }
+  }
+}
