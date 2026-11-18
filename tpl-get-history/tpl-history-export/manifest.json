@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "TPL Borrowing History Export",
+  "version": "0.1.0",
+  "description": "Exports Toronto Public Library (BiblioCommons) borrowing history as JSON.",
+  "content_scripts": [
+    {
+      "matches": ["https://tpl.bibliocommons.com/*"],
+      "js": ["lib.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
