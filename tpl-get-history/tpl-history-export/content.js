@@ -1,5 +1,7 @@
-// content.js -- injects a thin toolbar on /v2/recentlyreturned pages and runs the export.
-// Uses helpers from lib.js (TPL, findAccountId, extractPage, buildSnapshot).
+// content.js -- injects a thin toolbar on /v2/recentlyreturned pages, runs the
+// export, and hands the snapshot to the service worker for upload.
+// Uses helpers from lib.js (TPL, findAccountId, extractPage, buildSnapshot)
+// and upload.js (formatSummary, formatLastSync).
 
 (() => {
   const URL_PREFIX = 'https://tpl.bibliocommons.com/v2/recentlyreturned';
@@ -80,6 +82,24 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
 
+  // ---- service worker ----------------------------------------------------
+
+  async function ask(msg) {
+    // After the extension is reloaded, this old content script is orphaned.
+    if (!chrome.runtime || !chrome.runtime.id) {
+      throw new Error('The extension was reloaded. Reload this page.');
+    }
+    let res;
+    try {
+      res = await chrome.runtime.sendMessage(msg);
+    } catch (e) {
+      if (/context invalidated/i.test(e.message)) throw new Error('The extension was reloaded. Reload this page.');
+      throw e;
+    }
+    if (!res) throw new Error('No answer from the extension background worker.');
+    return res;
+  }
+
   // ---- UI ----------------------------------------------------------------
 
   function buildBar() {
@@ -100,7 +120,9 @@
                   text-overflow: ellipsis; white-space: nowrap; }
         .status.err { color: #b00020; }
         .status.ok { color: #1b6e2a; }
-        .close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 16px; }
+        .close { background: none; border: none; cursor: pointer; font-size: 16px; }
+        .link { background: none; border: none; padding: 2px 4px; color: #0b57d0;
+                text-decoration: underline; cursor: pointer; }
       </style>
       <div class="bar">
         <span class="title">History export</span>
@@ -110,6 +132,9 @@
         <button id="recent">Export recent</button>
         <button id="cancel" hidden>Cancel</button>
         <span class="status" id="status"></span>
+        <button id="retry" hidden>Retry upload</button>
+        <button id="download" hidden>Download JSON</button>
+        <button class="link" id="options" title="Web app URL, secret, download setting">Options</button>
         <button class="close" id="close" title="Hide">x</button>
       </div>`;
 
@@ -117,29 +142,93 @@
     const setStatus = (text, cls = '') => {
       const s = $('status');
       s.textContent = text;
+      s.title = text; // full text on hover when truncated
       s.className = `status ${cls}`;
     };
     const setBusy = (busy) => {
       $('all').disabled = busy;
       $('recent').disabled = busy;
       $('n').disabled = busy;
-      $('cancel').hidden = !busy;
+      $('cancel').hidden = !busy || !abortCtrl;
+      $('retry').disabled = busy;
     };
+
+    // Snapshot of the last export: kept for "Download JSON" and "Retry upload".
+    let lastSnap = null;
+    const offer = ({ download = false, retry = false }) => {
+      $('download').hidden = !download;
+      $('retry').hidden = !retry;
+    };
+
+    async function showIdleState() {
+      try {
+        const st = await ask({ type: 'GET_STATE' });
+        if (!st.configured) setStatus('Upload not set up: click Options.', 'err');
+        else setStatus(formatLastSync(st.lastSync));
+      } catch (e) {
+        setStatus(e.message, 'err');
+      }
+    }
+
+    async function uploadSnap(snap) {
+      setStatus(`Uploading ${snap.loans.length} loans, ${snap.bibs.length} books to Google Sheets...`);
+      const r = await ask({ type: 'UPLOAD', payload: snap });
+      if (r.ok) {
+        offer({});
+        setStatus(`Synced (${snap.mode}): ${formatSummary(r.summary)}.`, 'ok');
+      } else {
+        // No automatic retry: show the error and let the user decide.
+        offer({ download: true, retry: !r.needsSetup });
+        setStatus(r.needsSetup ? r.error : `Upload failed: ${r.error}`, 'err');
+      }
+    }
 
     async function start(maxPages) {
       abortCtrl = new AbortController();
+      lastSnap = null;
+      offer({});
       setBusy(true);
       try {
         const snap = await runExport(maxPages, (t) => setStatus(t), abortCtrl.signal);
-        downloadJson(snap);
-        const summary = `${snap.loans.length} loans, ${snap.bibs.length} books, ${snap.pagesFetched} page(s)`;
-        if (snap.valid) setStatus(`Done: ${summary}.`, 'ok');
-        else setStatus(`Done with warnings: ${summary}. ${snap.warnings.join('; ')}`, 'err');
+        lastSnap = snap;
+        // Fetching is done; the upload itself cannot be cancelled.
+        abortCtrl = null;
+        $('cancel').hidden = true;
+
+        const st = await ask({ type: 'GET_STATE' });
+        if (st.alwaysDownload) downloadJson(snap);
+
+        if (!snap.valid) {
+          offer({ download: true });
+          setStatus(
+            `Not uploaded: snapshot has warnings (${snap.loans.length} loans, ${snap.bibs.length} books). ${snap.warnings.join('; ')}`,
+            'err',
+          );
+          return;
+        }
+        await uploadSnap(snap);
       } catch (e) {
         if (e.name === 'AbortError') setStatus('Cancelled.');
-        else setStatus(`Error: ${e.message}`, 'err');
+        else {
+          setStatus(`Error: ${e.message}`, 'err');
+          if (lastSnap) offer({ download: true, retry: lastSnap.valid });
+        }
       } finally {
         abortCtrl = null;
+        setBusy(false);
+      }
+    }
+
+    async function retry() {
+      if (!lastSnap) return;
+      offer({});
+      setBusy(true);
+      try {
+        await uploadSnap(lastSnap);
+      } catch (e) {
+        offer({ download: true, retry: true });
+        setStatus(`Error: ${e.message}`, 'err');
+      } finally {
         setBusy(false);
       }
     }
@@ -147,7 +236,11 @@
     $('all').addEventListener('click', () => start(Infinity));
     $('recent').addEventListener('click', () => start(Number($('n').value)));
     $('cancel').addEventListener('click', () => abortCtrl && abortCtrl.abort());
+    $('retry').addEventListener('click', retry);
+    $('download').addEventListener('click', () => lastSnap && downloadJson(lastSnap));
+    $('options').addEventListener('click', () => ask({ type: 'OPEN_OPTIONS' }).catch((e) => setStatus(e.message, 'err')));
     $('close').addEventListener('click', () => host.remove());
+    showIdleState();
     return host;
   }
 

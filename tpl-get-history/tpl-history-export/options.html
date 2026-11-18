@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TPL History Export - Options</title>
+  <style>
+    body { font: 14px/1.4 system-ui, sans-serif; color: #1a1a1a; max-width: 680px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 18px; }
+    label { display: block; margin: 14px 0 4px; font-weight: 600; }
+    input[type=text], input[type=password] { width: 100%; box-sizing: border-box; padding: 6px; font: 13px ui-monospace, monospace; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row input { flex: 1; }
+    .check { font-weight: normal; display: flex; gap: 6px; align-items: center; }
+    .hint { color: #555; font-size: 12px; margin: 4px 0 0; }
+    .actions { margin-top: 18px; display: flex; gap: 8px; }
+    button { font: inherit; padding: 4px 12px; }
+    #msg { margin-top: 12px; min-height: 1.4em; }
+    .ok { color: #1b6e2a; } .err { color: #b00020; }
+    #last { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ddd; color: #444; }
+  </style>
+</head>
+<body>
+  <h1>TPL History Export</h1>
+
+  <label for="url">Web app URL</label>
+  <input type="text" id="url" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false" autocomplete="off">
+  <p class="hint">Deploy &gt; Manage deployments &gt; Web app URL (ends in /exec).</p>
+
+  <label for="secret">Shared secret</label>
+  <div class="row">
+    <input type="password" id="secret" spellcheck="false" autocomplete="off">
+    <button id="show" type="button">Show</button>
+  </div>
+  <p class="hint">Script Property SHARED_SECRET (printed by createSharedSecret). Stored only in this browser profile.</p>
+
+  <label class="check"><input type="checkbox" id="alwaysDownload"> Also download the JSON snapshot on every export</label>
+  <p class="hint">Off: the bar offers a download only when an upload fails or the snapshot has warnings.</p>
+
+  <div class="actions">
+    <button id="save" type="button">Save</button>
+    <button id="test" type="button">Test connection</button>
+  </div>
+  <div id="msg"></div>
+  <div id="last"></div>
+
+  <script src="upload.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
